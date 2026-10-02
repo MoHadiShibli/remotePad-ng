@@ -120,12 +120,12 @@ function(git_info tag short)
     find_package(Git)
     if(GIT_EXECUTABLE)
         execute_process(COMMAND git describe --tags --dirty
-                TIMEOUT 5
+                TIMEOUT 60
                 OUTPUT_VARIABLE GIT_TAG_VERSION
                 OUTPUT_STRIP_TRAILING_WHITESPACE
         )
         execute_process(COMMAND git rev-parse --short HEAD
-                TIMEOUT 5
+                TIMEOUT 60
                 OUTPUT_VARIABLE GIT_TAG_SHORT
                 OUTPUT_STRIP_TRAILING_WHITESPACE
         )
