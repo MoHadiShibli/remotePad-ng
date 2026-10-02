@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-option(DEVICE_IP "Set your PS4 IP address to send the PRX directly to the GoldHEN plugin folder")
+set(DEVICE_IP "" CACHE STRING "Set your PS4 IP address to send the PRX directly to the GoldHEN plugin folder")
 option(DEBUG_SDK "Enable debug output for GoldHEN SDK" OFF)
 
 if (NOT DEFINED ENV{OO_PS4_TOOLCHAIN})
@@ -13,12 +13,14 @@ git_info(GIT_TAG_VERSION GIT_TAG_SHORT)
 
 add_subdirectory(lib)
 
+# Pack the gzipped web client into the PRX (served as /client/index.html.gz)
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/static.c
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMAND gzip -k -c client/index.html > client/index.html.gz
-    COMMAND cc -o ${CMAKE_BINARY_DIR}/pack lib/mongoose/test/pack.c
-    COMMAND ${CMAKE_BINARY_DIR}/pack client/index.html.gz > ${CMAKE_BINARY_DIR}/static.c
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMAND ${CMAKE_COMMAND} -E make_directory client
+    COMMAND gzip -n -9 -c ${CMAKE_SOURCE_DIR}/client/index.html > client/index.html.gz
+    COMMAND cc -o pack ${CMAKE_SOURCE_DIR}/lib/mongoose/test/pack.c
+    COMMAND ./pack client/index.html.gz > static.c
     DEPENDS client/index.html
 )
 
@@ -29,6 +31,9 @@ target_include_directories(${PROJECT_NAME} PRIVATE include lib/GoldHEN_Plugins_S
 target_link_libraries(${PROJECT_NAME} SceSysmodule SceUserService ScePad SceNet mongoose ${GoldHEN_SDK_TARGET})
 target_link_options(${PROJECT_NAME} PRIVATE --gc-sections)
 target_compile_options(${PROJECT_NAME} PRIVATE -DBUILD_TAG_VERSION=${GIT_TAG_VERSION} -DBUILD_TAG_SHORT=${GIT_TAG_SHORT})
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wpointer-arith)
+# Release builds drop debug_printf
+target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:__FINAL__=1>)
 add_dependencies(${PROJECT_NAME} goldhen_sdk)
 add_prx(${PROJECT_NAME})
 

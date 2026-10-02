@@ -108,6 +108,28 @@ bool ini_table_get_entry_as_int(ini_table_s* table, const char* section_name, co
 bool ini_table_get_entry_as_bool(ini_table_s* table, const char* section_name, const char* key,
                                  bool* value);
 
+/**
+ * @brief Parses a PS4 user id: the hex form Apollo shows (1A2B3C4D or 0x1A2B3C4D) or the decimal form
+ *        (481996745). A value with a 0x prefix or any a-f letter is hex, anything else is decimal.
+ *        Returns false when the text is not a valid user id.
+ * @param text
+ * @param [out]value
+ * @return bool
+ */
+bool ini_parse_user_id(const char* text, int32_t* value);
+
+/**
+ * @brief Retrieves the value of the specified `key' in `section_name' as a PS4 user id
+ *        (see ini_parse_user_id). Returns false when the entry is missing or invalid.
+ * @param table
+ * @param section_name
+ * @param key
+ * @param [out]value
+ * @return bool
+ */
+bool ini_table_get_entry_as_user_id(ini_table_s* table, const char* section_name, const char* key,
+                                    int32_t* value);
+
 // Ctn: make this non-static
 ini_section_s* _ini_section_find(ini_table_s* table, const char* name);
 

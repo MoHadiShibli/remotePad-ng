@@ -11,7 +11,9 @@
 
 #define ORBIS_HID_ERROR_ALREADY_LOGGED_OUT 0x803B0101
 #define REMOTE_PAD_MAX_PADS 4
-#define REMOTE_PAD_MAX_HISTORY 64
+// Samples a pad keeps for scePadRead (one slot stays free, so 15 can wait). Stick-only updates replace the
+// newest unread sample instead of queueing, so only button and touch changes add up here.
+#define REMOTE_PAD_MAX_HISTORY 16
 
 typedef struct {
     int32_t deviceClass;
@@ -31,11 +33,16 @@ void emptyPadData(OrbisPadData *data);
 
 void initPadData(size_t index);
 
+void resetPadData(size_t index);
+
 void pushPadData(size_t index, OrbisPadData *data);
 
 void getLatestPadData(size_t index, OrbisPadData *data);
 
 int32_t getPadData(size_t index, OrbisPadData *data, int32_t count);
+
+// Whether the game is told that this pad's controller is connected
+bool isPadConnected(size_t index);
 
 typedef struct RemotePad RemotePad;
 typedef const struct RemotePadDriver *RemotePadDriverPtr;
@@ -70,6 +77,9 @@ typedef struct RemotePadDriver {
 
     int32_t (*close)(RemotePad *pad);
 
+    // Called after a pad was opened/closed by the game or the remote users changed (optional)
+    void (*statusChanged)(RemotePadDriverPtr driver);
+
     // Driver specific global data
     void *data;
 
@@ -83,6 +93,13 @@ typedef struct RemotePad {
 
     const RemotePadDriver *driver;
     circularBuf *padData;
+
+    // A phone/PC is driving this pad. Without one the game sees a disconnected controller.
+    bool deviceConnected;
+    // Reported to the game as the controller's connection count (increases on every reconnect)
+    uint8_t connectCount;
+    // Share mode: the real controller handle this pad's input is added to (-1 = none)
+    int32_t sharedHandle;
 } RemotePad;
 
 typedef struct RemotePadService {
@@ -124,12 +141,38 @@ typedef struct RemotePadService {
 
     int32_t (*close)(int32_t handle);
 
+    // Tell all drivers that the pad/user status changed
+    void (*notifyStatus)(void);
+
+    // A driver reports whether a device is driving the pad with this index
+    void (*setDeviceConnected)(int32_t index, bool connected);
+
+    // Share mode: the game opened a real controller (handle) for the user of this pad. Reads of that
+    // controller get this pad's input added, its vibration and lightbar also go to this pad's devices.
+    void (*share)(int32_t index, int32_t realHandle);
+
+    void (*unshare)(int32_t realHandle);
+
+    // Add the input of the pad sharing this real controller to samples read from it (no-op otherwise)
+    void (*mergeShared)(int32_t realHandle, OrbisPadData *data, int32_t count);
+
+    // Output the game sends to a shared real controller, for the pad's devices too (no-op otherwise)
+    void (*shareVibration)(int32_t realHandle, const OrbisPadVibeParam *param);
+
+    void (*shareLightBar)(int32_t realHandle, OrbisPadColor *color);
+
+    void (*shareResetLightBar)(int32_t realHandle);
+
     RemotePad pads[REMOTE_PAD_MAX_PADS];
     OrbisPthreadMutex padMutex;
     OrbisPthreadMutex dataMutex;
+    // remote_pad.ini always_connected: pads look connected even without a device (the old behavior)
+    bool alwaysConnected;
 } RemotePadService;
 
 RemotePadService *initRemotePadService(void);
+
+RemotePadService *getRemotePadService(void);
 
 void termRemotePadService(RemotePadService *);
 

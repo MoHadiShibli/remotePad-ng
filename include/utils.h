@@ -12,12 +12,15 @@
 #define attr_module_hidden __attribute__((weak)) __attribute__((visibility("hidden")))
 #define attr_public __attribute__((visibility("default")))
 
+// printf, plus a copy straight to the kernel log (GoldHEN's klog server) for when the TTY redirect is off
+void log_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
 #if (__FINAL__) == 1
 #define BUILD_TYPE "(Release)"
 #define debug_printf(a, args...)
 #else
 #define BUILD_TYPE "(Debug)"
-#define debug_printf(a, args...) klog("[%s] (%s:%d) " a,  __func__,__FILE__, __LINE__, ##args)
+#define debug_printf(a, args...) log_printf("[%s] (%s:%d) " a,  __func__,__FILE__, __LINE__, ##args)
 #endif
 
 #define HOOK_DEFINE(func, ...) \
@@ -33,7 +36,7 @@
 #define SCE_OK 0
 #endif
 
-#define final_printf(a, args...) klog("\033[32m(%s:%d)\033[0m " a, __FILE__, __LINE__, ##args)
+#define final_printf(a, args...) log_printf("[remote_pad] (%s:%d) " a, __FILE__, __LINE__, ##args)
 
 #define print_proc_info() {\
     final_printf("process info\n");\
@@ -46,7 +49,7 @@
     final_printf("base_address: 0x%lx\n", procInfo.base_address);\
 }
 
-void Notify(const char* IconUri, const char *FMT, ...);
+void Notify(const char* IconUri, const char *FMT, ...) __attribute__((format(printf, 2, 3)));
 
 int32_t load_prx(const char *name, bool syscall);
 

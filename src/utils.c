@@ -1,6 +1,23 @@
 #include "utils.h"
 #include <orbis/libkernel.h>
 
+void log_printf(const char *fmt, ...) {
+    char text[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+
+    // stdout reaches klog only when GoldHEN's TTY redirect is on
+    printf("%s", text);
+    // The kernel log always does. sceKernelDebugOutText formats its text, so no '%' may reach it.
+    for (char *p = text; *p; p++) {
+        if (*p == '%')
+            *p = '#';
+    }
+    sceKernelDebugOutText(0, text);
+}
+
 
 int32_t load_prx(const char *name, bool syscall) {
     int32_t ret;
@@ -14,7 +31,7 @@ int32_t load_prx(const char *name, bool syscall) {
     }
     final_printf("%s prx id = %d\n", name, ret);
     if (ret < 0) {
-        Notify(TEX_ICON_SYSTEM, "[RemotePad]\n %s load failed 0x%X", name, ret);
+        Notify(TEX_ICON_SYSTEM, "RemotePad NG\n%s load failed 0x%X", name, ret);
         return 1;
     }
     return 0;

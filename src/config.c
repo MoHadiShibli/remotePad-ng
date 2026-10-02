@@ -1,4 +1,4 @@
-#include <limits.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,8 +72,13 @@ static ini_entry_s* _ini_entry_get(ini_table_s* table, const char* section_name,
 
 ini_table_s* ini_table_create(void) {
     ini_table_s* table = (ini_table_s*)malloc(sizeof(ini_table_s));
+    if (table == NULL) return NULL;
     table->size = 0;
     table->section = (ini_section_s*)malloc(10 * sizeof(ini_section_s));
+    if (table->section == NULL) {
+        free(table);
+        return NULL;
+    }
     return table;
 }
 
@@ -92,44 +97,51 @@ void ini_table_destroy(ini_table_s* table) {
     free(table);
 }
 
-int eof_hack(int c) {
-    static bool first_time = true;
-
-    if (first_time && c == EOF) {
-        first_time = false;
-        return INT_MAX;
-    }
-
-    return EOF;
-}
-
 bool ini_table_read_from_file(ini_table_s* table, const char* file) {
     FILE* f = fopen(file, "r");
     if (f == NULL) return false;
+
+    // Skip the UTF-8 byte order mark some Windows editors add
+    if (!(fgetc(f) == 0xEF && fgetc(f) == 0xBB && fgetc(f) == 0xBF)) rewind(f);
 
     enum { Section, Key, Value, Comment } state = Section;
     int c;
     int position = 0;
     int spaces = 0;
-    int line = 0;
     int buffer_size = 128 * sizeof(char);
     char* buf = (char*)malloc(buffer_size);
     char* value = NULL;
+    bool eof_seen = false;
 
     ini_section_s* current_section = NULL;
+    if (buf == NULL) {
+        fclose(f);
+        return false;
+    }
     memset(buf, '\0', buffer_size);
 
-    bool first_eol = false;
     while (1) {
         c = fgetc(f);
-        if (c == eof_hack(c)) break;
+        if (c == EOF) {
+            // EOF ends the last line like a newline would, then stops the loop
+            if (eof_seen) break;
+            eof_seen = true;
+        }
 
         if (c == '\r') continue;
-        if (position > buffer_size - 2) {
-            buffer_size += 128 * sizeof(char);
+        // Room for the pending spaces, this character and the terminator
+        if (position + spaces + 2 > buffer_size) {
+            int new_size = position + spaces + 2 + 128 * (int) sizeof(char);
             size_t value_offset = value == NULL ? 0 : value - buf;
-            buf = (char*)realloc(buf, buffer_size);
-            memset(buf + position, '\0', buffer_size - position);
+            char* new_buf = (char*)realloc(buf, new_size);
+            if (new_buf == NULL) {
+                free(buf);
+                fclose(f);
+                return false;
+            }
+            buf = new_buf;
+            memset(buf + position, '\0', new_size - position);
+            buffer_size = new_size;
 
             if (value != NULL) value = buf + value_offset;
         }
@@ -145,18 +157,14 @@ bool ini_table_read_from_file(ini_table_s* table, const char* file) {
                 }
                 break;
             case ';':
-                while (c != eof_hack(c) && c != '\n') {
+                while (c != EOF && c != '\n') {
                     c = fgetc(f);
                 }
+                if (c == EOF) eof_seen = true;
                 // fallthrough
             case '\n':
                 // fallthrough
             case EOF:
-                if (first_eol) {
-                    continue;
-                    first_eol = true;
-                }
-                line++;
                 if (state == Value) {
                     if (current_section == NULL) {
                         current_section = _ini_section_create(table, "");
@@ -184,9 +192,17 @@ bool ini_table_read_from_file(ini_table_s* table, const char* file) {
                 spaces = 0;
                 break;
             case '[':
-                state = Section;
-                break;
+                if (state != Value) {
+                    // A section header: drop anything before it on this line
+                    memset(buf, '\0', buffer_size);
+                    position = 0;
+                    spaces = 0;
+                    state = Section;
+                    break;
+                }
+                goto append;
             case ']':
+                if (state != Section) goto append;
                 current_section = _ini_section_create(table, buf);
                 memset(buf, '\0', buffer_size);
                 position = 0;
@@ -201,14 +217,15 @@ bool ini_table_read_from_file(ini_table_s* table, const char* file) {
                     spaces = 0;
                     continue;
                 }
+                goto append;
             default:
+            append:
                 for (; spaces > 0; spaces--) buf[position++] = ' ';
                 buf[position++] = c;
                 break;
         }
     }
     free(buf);
-    if (fflush(f) == 0) fsync(fileno(f));
     fclose(f);
     return true;
 }
@@ -283,4 +300,47 @@ bool ini_table_get_entry_as_bool(ini_table_s* table, const char* section_name, c
         *value = false;
     }
     return true;
+}
+
+bool ini_parse_user_id(const char* text, int32_t* value) {
+    const char* digits;
+    const char* p;
+    unsigned int base = 10;
+    unsigned long long parsed = 0;
+
+    while (*text == ' ' || *text == '\t') text++;
+    digits = text;
+    if (text[0] == '0' && (text[1] == 'x' || text[1] == 'X')) {
+        base = 16;
+        digits = text + 2;
+    } else {
+        for (p = text; *p; p++) {
+            if (isxdigit((unsigned char)*p) && !isdigit((unsigned char)*p)) {
+                base = 16;
+                break;
+            }
+        }
+    }
+
+    for (p = digits; isxdigit((unsigned char)*p); p++) {
+        unsigned int digit = isdigit((unsigned char)*p) ? (unsigned int)(*p - '0')
+                                                        : (unsigned int)(tolower((unsigned char)*p) - 'a' + 10);
+        if (digit >= base) return false;
+        parsed = parsed * base + digit;
+        if (parsed > 0xFFFFFFFFull) return false;
+    }
+    while (*p == ' ' || *p == '\t') p++;
+    // 0 and 0xFFFFFFFF (-1) are not user ids
+    if (p == digits || *p != '\0' || parsed == 0 || parsed == 0xFFFFFFFFull) return false;
+    *value = (int32_t)(uint32_t)parsed;
+    return true;
+}
+
+bool ini_table_get_entry_as_user_id(ini_table_s* table, const char* section_name, const char* key,
+                                    int32_t* value) {
+    const char* val = ini_table_get_entry(table, section_name, key);
+    if (val == NULL) {
+        return false;
+    }
+    return ini_parse_user_id(val, value);
 }

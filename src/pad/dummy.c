@@ -43,8 +43,9 @@ static int32_t dymmySetAngularVelocityDeadbandState(RemotePad *pad, bool enable)
 }
 
 static int32_t dummyGetControllerInformation(RemotePad *pad, OrbisPadInformation *info) {
-    (void) pad;
     emptyPadInfo(info);
+    info->connected = isPadConnected(pad->index) ? 1 : 0;
+    info->count = pad->connectCount ? pad->connectCount : info->connected;
     return 0;
 }
 
@@ -74,7 +75,8 @@ static int32_t dummyReadState(RemotePad *pad, OrbisPadData *data) {
 }
 
 static int32_t dummyClose(RemotePad *pad) {
-    pad->userId = 0;
+    // The pad service releases the pad (userId/data) after the driver's close
+    (void) pad;
     return 0;
 }
 

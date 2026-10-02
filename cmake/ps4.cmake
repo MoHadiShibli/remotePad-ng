@@ -119,7 +119,7 @@ function(git_info tag short)
     # Add git info
     find_package(Git)
     if(GIT_EXECUTABLE)
-        execute_process(COMMAND git describe --tags
+        execute_process(COMMAND git describe --tags --dirty
                 TIMEOUT 5
                 OUTPUT_VARIABLE GIT_TAG_VERSION
                 OUTPUT_STRIP_TRAILING_WHITESPACE

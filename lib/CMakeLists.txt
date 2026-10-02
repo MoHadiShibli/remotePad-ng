@@ -3,7 +3,9 @@
 set(MONGOOSE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/mongoose)
 add_library(mongoose STATIC ${MONGOOSE_DIR}/mongoose.c)
 target_include_directories(mongoose PUBLIC ${MONGOOSE_DIR})
-target_compile_options(mongoose PRIVATE -ffunction-sections -fdata-sections -DMG_ENABLE_PACKED_FS=1)
+# Messages from clients are small (under 2 KB): a 64 KB cap per connection instead of mongoose's 3 MB keeps one
+# client from using up the game's memory
+target_compile_options(mongoose PRIVATE -ffunction-sections -fdata-sections -DMG_ENABLE_PACKED_FS=1 -DMG_MAX_RECV_SIZE=65536)
 
 # GoldHEN SDK
 set(GoldHEN_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/GoldHEN_Plugins_SDK)
