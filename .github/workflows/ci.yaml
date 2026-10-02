@@ -2,7 +2,12 @@ name: Build
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
+
+# Read-only by default; only the release job may write
+permissions:
+  contents: read
 
 jobs:
   build-prx:
@@ -26,3 +31,22 @@ jobs:
         with:
           name: remote_pad.prx
           path: build/remote_pad.prx
+
+  # Pushing a version tag (like v1.0.0) publishes a GitHub release with the plugin attached
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-prx
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: remote_pad.prx
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          files: remote_pad.prx
+          generate_release_notes: true

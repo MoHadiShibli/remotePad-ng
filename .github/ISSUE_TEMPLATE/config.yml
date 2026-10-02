@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup guide and troubleshooting
+    url: https://github.com/MoHadiShibli/remotePad-ng/wiki
+    about: Installing, playing, and fixes for the most common problems.
+  - name: Report a security problem
+    url: https://github.com/MoHadiShibli/remotePad-ng/security
+    about: Please report vulnerabilities privately, not in a public issue.

@@ -1,0 +1,49 @@
+name: Bug report
+description: Something doesn't work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! First, please check the [Troubleshooting](https://github.com/MoHadiShibli/remotePad-ng/wiki/Troubleshooting) page: most setup problems are covered there.
+  - type: input
+    id: version
+    attributes:
+      label: RemotePad NG version
+      description: Shown at the bottom of the page, for example "RemotePad NG v1.0.0".
+    validations:
+      required: true
+  - type: input
+    id: console
+    attributes:
+      label: Firmware and GoldHEN version
+      placeholder: "Firmware 10.01, GoldHEN v2.4b18.10"
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game and title ID
+      description: The title ID looks like CUSA00001. Write "none" if it isn't about a specific game.
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Phone or computer and browser
+      placeholder: "Android phone, Chrome"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (optional)
+      description: |
+        GoldHEN's log server is on port 3232: run `nc <ps4-ip> 3232` on a computer, start the game, and copy the lines that start with `[remote_pad]`.
+        Logs can contain your IP address and PS4 user IDs: remove them if you prefer.
+      render: text
