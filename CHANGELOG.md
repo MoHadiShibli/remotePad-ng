@@ -11,6 +11,8 @@
 - **Use with the DualShock** stopped working in those games right after they started: closing the special port
   ended the sharing. Only the normal port is shared now.
 - Some messages in the PS4 log counted pads from 0. They all use the page's numbers now, Pad 1 to Pad 4.
+- The page's footer had no link to RemotePad NG itself. "RemotePad NG" now opens its GitHub page, next to the
+  link to the original remotePad.
 
 ## RemotePad NG 1.0.0 (2026-10-02)
 
