@@ -64,6 +64,7 @@ static int32_t init(void) {
         rps.pads[i].deviceConnected = false;
         rps.pads[i].connectCount = 0;
         rps.pads[i].sharedHandle = -1;
+        rps.pads[i].specialOpen = false;
         initPadData(i);
         if (rps.pads[i].padData == NULL) {
             final_printf("[RemotePad]: failed to allocate the data buffer of pad %d\n", i);
@@ -95,7 +96,7 @@ static void setDeviceConnected(int32_t index, bool connected) {
     }
     scePthreadMutexUnlock(&rps.padMutex);
     if (changed)
-        final_printf("[RemotePad] pad %d: device %s\n", index, connected ? "connected" : "disconnected");
+        final_printf("[RemotePad] pad %d: device %s\n", index + 1, connected ? "connected" : "disconnected");
 }
 
 static int32_t sharedIndex(int32_t realHandle) {
@@ -215,6 +216,7 @@ static int32_t term(void) {
         termData(pad->padData);
         pad->padData = NULL;
         pad->sharedHandle = -1;
+        pad->specialOpen = false;
     }
     scePthreadMutexUnlock(&rps.padMutex);
     scePthreadMutexDestroy(&rps.padMutex);
@@ -238,13 +240,20 @@ static int32_t getPad(int32_t handle, RemotePad **padPtr) {
     for (int i = 0; i < REMOTE_PAD_MAX_PADS; i++) {
         if (rps.pads[i].handle == handle) {
             pad = &rps.pads[i];
+            if (pad->userId == 0)
+                return ORBIS_HID_ERROR_ALREADY_LOGGED_OUT;
+            break;
+        }
+        if (rps.pads[i].handle + REMOTE_PAD_SPECIAL_HANDLE_OFFSET == handle) {
+            // The special port reads and answers like the pad itself
+            pad = &rps.pads[i];
+            if (!pad->specialOpen)
+                return ORBIS_HID_ERROR_ALREADY_LOGGED_OUT;
             break;
         }
     }
     if (pad == NULL)
         return ORBIS_PAD_ERROR_INVALID_HANDLE;
-    else if (pad->userId == 0)
-        return ORBIS_HID_ERROR_ALREADY_LOGGED_OUT;
     *padPtr = pad;
     return 0;
 }
@@ -312,12 +321,14 @@ static int32_t padReadState(int32_t handle, OrbisPadData *data) {
 
 static int32_t padGetHandle(int32_t userId, uint32_t controller_type, uint32_t controller_index) {
     int32_t handle = 0;
-    (void) controller_type;
     (void) controller_index;
     scePthreadMutexLock(&rps.padMutex);
     for (int i = 0; i < REMOTE_PAD_MAX_PADS; i++) {
         if (rps.pads[i].userId == userId) {
-            handle = rps.pads[i].handle;
+            if (controller_type != ORBIS_PAD_PORT_TYPE_SPECIAL)
+                handle = rps.pads[i].handle;
+            else if (rps.pads[i].specialOpen)
+                handle = rps.pads[i].handle + REMOTE_PAD_SPECIAL_HANDLE_OFFSET;
             break;
         }
     }
@@ -327,12 +338,34 @@ static int32_t padGetHandle(int32_t userId, uint32_t controller_type, uint32_t c
     return ORBIS_PAD_ERROR_DEVICE_NO_HANDLE;
 }
 
+// Unity opens a player's special port right after the standard one, compares the two controllers and closes
+// one of them. If the special port can't be opened, the player gets no controller at all ("Sign in" in
+// Tricky Towers). A remote pad has no special device: its special port is the same pad.
+static int32_t openSpecialPort(int32_t userId, int32_t index) {
+    scePthreadMutexLock(&rps.padMutex);
+    RemotePad *pad = &rps.pads[index];
+    if (pad->specialOpen || (pad->userId != 0 && pad->userId != userId)) {
+        scePthreadMutexUnlock(&rps.padMutex);
+        return ORBIS_PAD_ERROR_ALREADY_OPENED;
+    }
+    pad->specialOpen = true;
+    pad->driver = &wsDriver;
+    int32_t handle = pad->handle + REMOTE_PAD_SPECIAL_HANDLE_OFFSET;
+    scePthreadMutexUnlock(&rps.padMutex);
+
+    final_printf("[RemotePad] pad %d: special port opened for user 0x%08X (handle %d)\n", index + 1, userId, handle);
+    return handle;
+}
+
 static int32_t padOpen(int32_t userId, int32_t type, int32_t index, void *param) {
     int32_t handle;
-    (void) type;
     (void) param;
     if (index < 0 || index >= REMOTE_PAD_MAX_PADS)
         return ORBIS_PAD_ERROR_INVALID_ARG;
+    if (type == ORBIS_PAD_PORT_TYPE_SPECIAL)
+        return openSpecialPort(userId, index);
+    if (type != ORBIS_PAD_PORT_TYPE_STANDARD)
+        return ORBIS_PAD_ERROR_INVALID_PORT; // the remote control port: a remote pad has none
     scePthreadMutexLock(&rps.padMutex);
     for (int i = 0; i < REMOTE_PAD_MAX_PADS; i++) {
         if (rps.pads[i].userId == userId) {
@@ -343,7 +376,7 @@ static int32_t padOpen(int32_t userId, int32_t type, int32_t index, void *param)
     if (rps.pads[index].userId != 0) {
         // Every remote user owns the pad with its own index, so this means two users share an index
         scePthreadMutexUnlock(&rps.padMutex);
-        final_printf("[RemotePad] pad %d is already used by user 0x%08X\n", index, rps.pads[index].userId);
+        final_printf("[RemotePad] pad %d is already used by user 0x%08X\n", index + 1, rps.pads[index].userId);
         return ORBIS_PAD_ERROR_ALREADY_OPENED;
     }
 
@@ -355,16 +388,23 @@ static int32_t padOpen(int32_t userId, int32_t type, int32_t index, void *param)
     resetPadData(index);
     scePthreadMutexUnlock(&rps.padMutex);
 
-    final_printf("[RemotePad] pad %d opened for user 0x%08X (handle %d)\n", index, userId, handle);
+    final_printf("[RemotePad] pad %d opened for user 0x%08X (handle %d)\n", index + 1, userId, handle);
     notifyStatus();
     return handle;
 }
 
 static int32_t padClose(int32_t handle) {
     GET_PAD(handle)
+    if (handle != pad->handle) {
+        // The special port: the pad itself stays open
+        pad->specialOpen = false;
+        scePthreadMutexUnlock(&rps.padMutex);
+        final_printf("[RemotePad] pad %d: special port closed\n", pad->index + 1);
+        return SCE_OK;
+    }
     CALL_FUNCTION(close)
     if (ret == 0) {
-        final_printf("[RemotePad] pad %d closed (user 0x%08X)\n", pad->index, pad->userId);
+        final_printf("[RemotePad] pad %d closed (user 0x%08X)\n", pad->index + 1, pad->userId);
         pad->userId = 0;
         resetPadData(pad->index);
     }

@@ -15,6 +15,10 @@
 // newest unread sample instead of queueing, so only button and touch changes add up here.
 #define REMOTE_PAD_MAX_HISTORY 16
 
+// A pad's special port handle is its standard handle plus this. Unity opens a player's special port next to
+// the standard one and drops the player's controller when that fails; for a remote pad both ports are the pad.
+#define REMOTE_PAD_SPECIAL_HANDLE_OFFSET 100
+
 typedef struct {
     int32_t deviceClass;
     uint8_t reserved[4];
@@ -100,6 +104,8 @@ typedef struct RemotePad {
     uint8_t connectCount;
     // Share mode: the real controller handle this pad's input is added to (-1 = none)
     int32_t sharedHandle;
+    // The game also opened the pad's special port (handle + REMOTE_PAD_SPECIAL_HANDLE_OFFSET)
+    bool specialOpen;
 } RemotePad;
 
 typedef struct RemotePadService {

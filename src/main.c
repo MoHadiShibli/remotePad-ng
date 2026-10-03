@@ -11,7 +11,7 @@
 attr_public const char *g_pluginName = "RemotePad NG";
 attr_public const char *g_pluginDesc = "Play your PS4 with phones, PCs and any controller";
 attr_public const char *g_pluginAuth = "xfangfang, MoHadiShibli";
-attr_public uint32_t g_pluginVersion = 0x00000100; // RemotePad NG 1.0.0
+attr_public uint32_t g_pluginVersion = 0x00000101; // RemotePad NG 1.0.1
 
 static RemoteUserService *remoteUserService;
 static RemotePadService *remotePad;
@@ -34,9 +34,10 @@ HOOK_DEFINE(scePadInit, void) {
 HOOK_DEFINE(scePadOpen, int32_t userId, int32_t type, int32_t index, void *param) {
     RemoteUser *user = remoteUserService->getActiveUser(userId);
     if (user != NULL && sharesController(user) && userId == user->realId) {
-        // Share mode: the real controller stays in use and this pad's input is added to it
+        // Share mode: the real controller stays in use and this pad's input is added to it. Only the standard
+        // port: Unity also opens the special port and closes it again, which must not end the sharing.
         int32_t handle = HOOK_PASS(scePadOpen, userId, type, index, param);
-        if (handle >= 0)
+        if (handle >= 0 && type == ORBIS_PAD_PORT_TYPE_STANDARD)
             remotePad->share(user->index, handle);
         return handle;
     }
