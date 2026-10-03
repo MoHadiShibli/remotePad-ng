@@ -1,5 +1,17 @@
 # Changelog
 
+## RemotePad NG 1.0.1 (2026-10-03)
+
+### Fixed
+
+- **Remote players can join Unity games that said "Sign in"**, like Tricky Towers. These games open a second,
+  "special" controller port for every player, compare it with the normal one and close one of them. The plugin
+  refused the special port of its pads, so the game kept no controller for those players. A pad's special port
+  now works as the same pad.
+- **Use with the DualShock** stopped working in those games right after they started: closing the special port
+  ended the sharing. Only the normal port is shared now.
+- Some messages in the PS4 log counted pads from 0. They all use the page's numbers now, Pad 1 to Pad 4.
+
 ## RemotePad NG 1.0.0 (2026-10-02)
 
 The first release of RemotePad NG, a maintained fork of [remotePad](https://github.com/xfangfang/remotePad)

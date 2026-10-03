@@ -4,9 +4,13 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20this%20project-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/mohadishibli)
 
-**Play your jailbroken PS4 with phones, computers and almost any controller.** RemotePad NG is a GoldHEN
-plugin that adds up to four virtual DualShock 4 controllers. You use them from a web page, so local
-multiplayer games don't need extra DualShocks.
+**Play your jailbroken PS4 with the controllers you already have.** Xbox, DualSense, Switch Pro and most
+other controllers work, and your phone, tablet or keyboard can be a controller too.
+
+RemotePad NG is a GoldHEN plugin that adds up to four extra DualShock 4 controllers to your games. Connect
+your controllers to a phone or computer, open the plugin's page in its browser and give each one a pad: the
+game sees it as a DualShock 4. You don't need to buy more DualShocks for local multiplayer, and there's
+nothing to install on the phone or computer.
 
 ![The controller on a phone](docs/images/controller.png)
 
@@ -23,6 +27,8 @@ phone.
 
 ## Features
 
+- **The controllers you already have.** Xbox, DualSense, DualShock, Switch Pro and most others work through
+  your phone or computer. Each one can play as its own pad, so one computer can run all four.
 - **Nothing to install on your phone or computer.** The plugin serves its own page; open it in any browser on
   your network.
 - **Pick a pad, play.** The home screen shows the four pads live: free, joining the game, or playing. A player
@@ -31,8 +37,6 @@ phone.
   light bar color.
 - **Your own button layout.** Drag, resize or hide any button, with "Reset to default". Each device keeps its
   own layout.
-- **Real controllers through your phone or computer.** Xbox, DualSense, DualShock, Switch Pro and most others
-  work, and each one can play as its own pad.
 - **A keyboard** with keys you can change.
 - **Settings on the page**: pad names, PS4 users, which pads are on, how players join. They're saved on the
   console, for all games or just one.
@@ -82,6 +86,8 @@ Coming from the original remotePad? Replace `remote_pad.prx` and you're done. Yo
   (xfangfang/remotePad#8): the guide covers both. The settings file is now written from the page.
 - **Touchpad for controllers without one** (xfangfang/remotePad#6): Share, Back or Home on a connected
   controller clicks the touchpad.
+- **Remote players couldn't join some Unity games**, like Tricky Towers: the player select said "Sign in". These
+  games open a second controller port for each player, and the plugin refused it (fixed in 1.0.1).
 - Pads were set up as soon as the game started, and every pad looked connected, even with nobody playing.
 - Pads took over PS4 users who weren't signed in, and replaced their names and colors.
 - `scePadRead` returned corrupted data when more than one update was waiting.
