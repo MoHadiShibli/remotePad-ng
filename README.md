@@ -4,6 +4,16 @@
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20this%20project-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/mohadishibli)
 
+> [!TIP]
+> **Try [Control4Free](https://github.com/MoHadiShibli/Control4Free), the improved approach.** Instead of working
+> around the PS4 with a plugin inside each game, it uses the PS4's own virtual controller service. Your
+> controllers work in the PS4's menus and on the home screen too, and each one is assigned to a user natively,
+> through the PS4's own *"Who's using this controller?"* screen.
+>
+> RemotePad NG and Control4Free aren't compatible: choose one. To switch, remove RemotePad NG's line from
+> `plugins.ini` and follow
+> [Control4Free's quick start](https://github.com/MoHadiShibli/Control4Free#quick-start).
+
 **Play your jailbroken PS4 with the controllers you already have.** Xbox, DualSense, Switch Pro and most
 other controllers work, and your phone, tablet or keyboard can be a controller too.
 
